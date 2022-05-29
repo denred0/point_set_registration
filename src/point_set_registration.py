@@ -93,13 +93,13 @@ def preprocess_point_cloud(pcd, voxel_size):
 
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
-    distance_threshold = voxel_size * 1.5
+    distance_threshold = voxel_size*1.5
     print(":: RANSAC registration on downsampled point clouds.")
     print("   Since the downsampling voxel size is %.3f," % voxel_size)
     print("   we use a liberal distance threshold %.3f." % distance_threshold)
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
         source_down, target_down, source_fpfh, target_fpfh, True, distance_threshold,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(False), 3,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True), 3,
         [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
          o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)],
         o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
@@ -163,7 +163,7 @@ if __name__ == "__main__":
         psource = scan_clouds[i]
         ptarget = result_scan_cloud
 
-        threshold_list = np.linspace(0.01, 0.02, 5)
+        threshold_list = np.linspace(0.01, 0.04, 5)
         # point-to-point algorithm
         point_transformation, correspondence_set = icp(psource,
                                                        ptarget,
@@ -182,14 +182,14 @@ if __name__ == "__main__":
     o3d.visualization.draw_geometries([pcd_scan], width=1080, height=720)
 
     # remove alone points
-    pcd_scan = remove_outliers(pcd_scan, nb_neighbors=20, std_ratio=1.5)
+    pcd_scan = remove_outliers(pcd_scan, nb_neighbors=20, std_ratio=1.0)
     o3d.visualization.draw_geometries([pcd_scan], width=1080, height=720)
 
     # show initial registration
     draw_registration_result(pcd_scan, pcd_target, trans_init)
 
     # start point-to-point algorithm with different thresholds
-    threshold_list = np.linspace(0.01, 0.5, 10)
+    threshold_list = np.linspace(0.01, 0.2, 10)
     point_transformation, correspondence_set = icp(pcd_scan,
                                                    pcd_target,
                                                    threshold_list,
@@ -218,6 +218,15 @@ if __name__ == "__main__":
     print(result_ransac)
     draw_registration_result(source_down, target_down, result_ransac.transformation)
 
-    result_icp = refine_registration(pcd_scan, pcd_target, voxel_size, result_ransac.transformation)
-    print(result_icp)
-    draw_registration_result(pcd_scan, pcd_target, result_icp.transformation)
+    threshold_list = np.linspace(0.01, 0.3, 10)
+    # point-to-point algorithm
+    point_transformation, correspondence_set = icp(pcd_scan,
+                                                   pcd_target,
+                                                   threshold_list,
+                                                   result_ransac.transformation,
+                                                   type='point',
+                                                   max_iteration=2000)
+
+    # result_icp = refine_registration(pcd_scan, pcd_target, voxel_size, result_ransac.transformation)
+    # print(result_icp)
+    draw_registration_result(pcd_scan, pcd_target, point_transformation)
