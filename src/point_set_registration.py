@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+import time
 import copy
 
 
@@ -93,7 +94,7 @@ def preprocess_point_cloud(pcd, voxel_size):
 
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
-    distance_threshold = voxel_size*1.5
+    distance_threshold = voxel_size * 1.5
     print(":: RANSAC registration on downsampled point clouds.")
     print("   Since the downsampling voxel size is %.3f," % voxel_size)
     print("   we use a liberal distance threshold %.3f." % distance_threshold)
@@ -190,24 +191,28 @@ if __name__ == "__main__":
 
     # start point-to-point algorithm with different thresholds
     threshold_list = np.linspace(0.01, 0.2, 10)
+    start_point_time = time.time()
     point_transformation, correspondence_set = icp(pcd_scan,
                                                    pcd_target,
                                                    threshold_list,
                                                    trans_init,
                                                    type='point',
                                                    max_iteration=2000)
+    print(f"Point-to-point time {np.round(time.time() - start_point_time, 1)} sec")
     draw_registration_result(pcd_scan, pcd_target, point_transformation)
 
     # start point-to-plane algorithm with different thresholds
+    start_plane_time = time.time()
     plane_transformation, correspondence_set = icp(pcd_scan,
                                                    pcd_target,
                                                    threshold_list,
                                                    trans_init,
                                                    type='plane',
                                                    max_iteration=2000)
+    print(f"Point-to-plane time {np.round(time.time() - start_plane_time, 1)} sec")
     draw_registration_result(pcd_scan, pcd_target, plane_transformation)
 
-    #
+    # global registration
     voxel_size = 0.05
     source_down, source_fpfh = preprocess_point_cloud(pcd_scan, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(pcd_target, voxel_size)
@@ -219,14 +224,10 @@ if __name__ == "__main__":
     draw_registration_result(source_down, target_down, result_ransac.transformation)
 
     threshold_list = np.linspace(0.01, 0.3, 10)
-    # point-to-point algorithm
-    point_transformation, correspondence_set = icp(pcd_scan,
+    point_transformation, _ = icp(pcd_scan,
                                                    pcd_target,
                                                    threshold_list,
                                                    result_ransac.transformation,
                                                    type='point',
                                                    max_iteration=2000)
-
-    # result_icp = refine_registration(pcd_scan, pcd_target, voxel_size, result_ransac.transformation)
-    # print(result_icp)
     draw_registration_result(pcd_scan, pcd_target, point_transformation)
